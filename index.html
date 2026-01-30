@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samet Totaş - Kuaför Randevu Sistemi</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Üst Başlık -->
+    <header>
+        <div class="container">
+            <h1>✂️ Samet Totaş Kuaför</h1>
+            <p class="subtitle">Online Randevu Sistemi</p>
+        </div>
+    </header>
+
+    <!-- Ana İçerik -->
+    <main class="container">
+        <!-- Çalışma Saatleri Bilgilendirme -->
+        <div class="info-box">
+            <h3>📋 Çalışma Saatleri</h3>
+            <p>🗓️ <strong>Pazartesi - Cumartesi:</strong> 09:00 - 21:00</p>
+            <p>🚫 <strong>Pazar:</strong> Kapalı</p>
+            <p>🍽️ <strong>Öğle Molası:</strong> 13:00 - 14:00</p>
+            <p>⏱️ <strong>Randevu Süresi:</strong> 40 dakika</p>
+        </div>
+
+        <!-- Randevu Formu -->
+        <div class="form-container">
+            <h2>📅 Randevu Al</h2>
+            
+            <form id="appointmentForm">
+                <!-- Tarih Seçimi -->
+                <div class="form-group">
+                    <label for="appointmentDate">📆 Tarih Seçin</label>
+                    <input type="date" id="appointmentDate" required>
+                </div>
+
+                <!-- Saat Seçimi -->
+                <div class="form-group">
+                    <label>🕐 Saat Seçin</label>
+                    <div id="timeSlots" class="time-slots">
+                        <p class="no-date-warning">Lütfen önce tarih seçiniz</p>
+                    </div>
+                </div>
+
+                <!-- Ad Soyad -->
+                <div class="form-group">
+                    <label for="customerName">👤 Ad Soyad</label>
+                    <input type="text" id="customerName" placeholder="Adınız ve Soyadınız" required>
+                </div>
+
+                <!-- Telefon -->
+                <div class="form-group">
+                    <label for="customerPhone">📱 Telefon</label>
+                    <input type="tel" id="customerPhone" placeholder="05XX XXX XX XX" required>
+                </div>
+
+                <!-- Gönder Butonu -->
+                <button type="submit" class="btn-submit">✅ Randevu Oluştur</button>
+            </form>
+        </div>
+
+        <!-- Admin Panel Linki -->
+        <div class="admin-link">
+            <a href="admin.html">🔐 Admin Paneli</a>
+        </div>
+    </main>
+
+    <!-- Başarı Mesajı Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>✅ Randevu Başarıyla Oluşturuldu!</h2>
+            <div id="appointmentSummary"></div>
+            <button onclick="closeModal()" class="btn-ok">Tamam</button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Samet Totaş Kuaför | Tüm Hakları Saklıdır</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
