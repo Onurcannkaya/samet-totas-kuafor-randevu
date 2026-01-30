@@ -7,69 +7,148 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Admin Login Ekranı -->
+    <!-- Login Screen -->
     <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <h1>🔐 Admin Girişi</h1>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">👤 Kullanıcı Adı</label>
-                    <input type="text" id="username" placeholder="admin" required>
+        <div class="login-container">
+            <div class="login-box">
+                <div class="login-header">
+                    <h1>🔐 Admin Girişi</h1>
+                    <p>Randevu Yönetim Paneli</p>
                 </div>
-                <div class="form-group">
-                    <label for="password">🔑 Şifre</label>
-                    <input type="password" id="password" placeholder="Şifrenizi girin" required>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">
+                            <span class="label-icon">👤</span>
+                            Kullanıcı Adı
+                        </label>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            placeholder="admin"
+                            autocomplete="username"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">
+                            <span class="label-icon">🔑</span>
+                            Şifre
+                        </label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            placeholder="Şifrenizi girin"
+                            autocomplete="current-password"
+                            required>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Giriş Yap</button>
+                    
+                    <p class="error-message" id="loginError"></p>
+                </form>
+
+                <div class="back-to-home">
+                    <a href="index.html">← Ana Sayfaya Dön</a>
                 </div>
-                <button type="submit" class="btn-submit">Giriş Yap</button>
-                <p class="error-message" id="loginError"></p>
-            </form>
-            <div class="back-link">
-                <a href="index.html">← Ana Sayfaya Dön</a>
             </div>
         </div>
     </div>
 
     <!-- Admin Panel -->
     <div id="adminPanel" class="admin-panel" style="display: none;">
-        <!-- Üst Başlık -->
-        <header>
+        <!-- Header -->
+        <header class="header admin-header">
             <div class="container">
-                <h1>🎯 Admin Panel</h1>
-                <p class="subtitle">Randevu Yönetimi</p>
-                <button onclick="logout()" class="btn-logout">🚪 Çıkış Yap</button>
+                <div class="admin-header-content">
+                    <div>
+                        <h1>🎯 Admin Panel</h1>
+                        <p class="subtitle">Randevu Yönetimi</p>
+                    </div>
+                    <button onclick="logout()" class="btn-logout">
+                        <span>🚪</span> Çıkış Yap
+                    </button>
+                </div>
             </div>
         </header>
 
-        <!-- Ana İçerik -->
+        <!-- Main Content -->
         <main class="container">
-            <!-- Tarih Filtreleme -->
-            <div class="filter-box">
-                <h3>📅 Tarih Filtrele</h3>
-                <div class="filter-group">
-                    <label for="filterDate">Tarih Seçin:</label>
-                    <input type="date" id="filterDate">
-                    <button onclick="filterAppointments()" class="btn-filter">Filtrele</button>
-                    <button onclick="showAllAppointments()" class="btn-reset">Tümünü Göster</button>
+            <!-- İstatistikler -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-info">
+                        <h3 id="totalAppointments">0</h3>
+                        <p>Toplam Randevu</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-info">
+                        <h3 id="pendingAppointments">0</h3>
+                        <p>Onay Bekleyen</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-info">
+                        <h3 id="approvedAppointments">0</h3>
+                        <p>Onaylanan</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">❌</div>
+                    <div class="stat-info">
+                        <h3 id="cancelledAppointments">0</h3>
+                        <p>İptal Edilen</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtreler -->
+            <div class="filter-card">
+                <h3>🔍 Filtrele</h3>
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="filterDate">Tarih:</label>
+                        <input type="date" id="filterDate">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStatus">Durum:</label>
+                        <select id="filterStatus">
+                            <option value="all">Tümü</option>
+                            <option value="pending">Onay Bekleyen</option>
+                            <option value="approved">Onaylanan</option>
+                            <option value="cancelled">İptal Edilen</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button onclick="applyFilters()" class="btn-filter">Filtrele</button>
+                        <button onclick="resetFilters()" class="btn-reset">Sıfırla</button>
+                    </div>
                 </div>
             </div>
 
             <!-- Randevu Listesi -->
-            <div class="appointments-container">
+            <div class="appointments-card">
                 <h2>📋 Randevu Listesi</h2>
-                <div id="appointmentsList">
-                    <!-- Randevular JavaScript ile buraya yüklenecek -->
+                <div id="appointmentsList" class="appointments-list">
+                    <!-- JavaScript ile doldurulacak -->
                 </div>
             </div>
 
             <!-- Ana Sayfaya Dön -->
-            <div class="admin-link">
-                <a href="index.html">← Müşteri Sayfasına Dön</a>
+            <div class="admin-link-container">
+                <a href="index.html" class="admin-link">← Müşteri Sayfasına Dön</a>
             </div>
         </main>
 
         <!-- Footer -->
-        <footer>
-            <p>&copy; 2026 Samet Totaş Kuaför | Admin Panel</p>
+        <footer class="footer">
+            <div class="container">
+                <p>&copy; 2026 Samet Totaş Kuaför | Admin Panel</p>
+            </div>
         </footer>
     </div>
 
