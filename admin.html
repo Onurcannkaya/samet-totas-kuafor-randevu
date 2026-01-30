@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Paneli | Samet Totaş</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f3f3f3; }
+    button { padding: 5px 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<h1>✂️ Samet Totaş Kuaför – Admin Paneli</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tarih</th>
+      <th>Saat</th>
+      <th>İsim</th>
+      <th>Telefon</th>
+      <th>Durum</th>
+      <th>İşlem</th>
+    </tr>
+  </thead>
+  <tbody id="randevuListesi"></tbody>
+</table>
+
+<script>
+  const data = JSON.parse(localStorage.getItem("randevular")) || [];
+  const tbody = document.getElementById("randevuListesi");
+
+  function render() {
+    tbody.innerHTML = "";
+    data.forEach((r, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.tarih}</td>
+        <td>${r.saat}</td>
+        <td>${r.isim}</td>
+        <td>${r.tel}</td>
+        <td>${r.onay ? "✅ Onaylı" : "⏳ Bekliyor"}</td>
+        <td>
+          <button onclick="onayla(${i})">Onayla</button>
+          <button onclick="sil(${i})">Sil</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function onayla(i) {
+    data[i].onay = true;
+    localStorage.setItem("randevular", JSON.stringify(data));
+    render();
+  }
+
+  function sil(i) {
+    data.splice(i, 1);
+    localStorage.setItem("randevular", JSON.stringify(data));
+    render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>
