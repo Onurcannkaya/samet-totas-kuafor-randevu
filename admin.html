@@ -1,37 +1,88 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Admin Paneli | Samet Totaş</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    h1 { color: #333; }
+    body { font-family: Arial, sans-serif; padding: 30px; }
+    h1 { margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #f3f3f3; }
-    button { padding: 5px 10px; cursor: pointer; }
+    th { background: #f2f2f2; }
+    button { padding: 6px 10px; cursor: pointer; }
+
+    #loginBox {
+      max-width: 300px;
+      margin: 100px auto;
+      text-align: center;
+    }
+
+    #panel { display: none; }
   </style>
 </head>
 <body>
 
-<h1>✂️ Samet Totaş Kuaför – Admin Paneli</h1>
+<!-- GİRİŞ -->
+<div id="loginBox">
+  <h2>🔐 Admin Girişi</h2>
+  <input type="password" id="password" placeholder="Şifre" />
+  <br><br>
+  <button onclick="login()">Giriş Yap</button>
+  <p id="error" style="color:red;"></p>
+</div>
 
-<table>
-  <thead>
-    <tr>
-      <th>Tarih</th>
-      <th>Saat</th>
-      <th>İsim</th>
-      <th>Telefon</th>
-      <th>Durum</th>
-      <th>İşlem</th>
-    </tr>
-  </thead>
-  <tbody id="randevuListesi"></tbody>
-</table>
+<!-- PANEL -->
+<div id="panel">
+  <h1>✂️ Samet Totaş Kuaför – Admin Paneli</h1>
+
+  <button onclick="logout()">Çıkış Yap</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tarih</th>
+        <th>Saat</th>
+        <th>İsim</th>
+        <th>Telefon</th>
+        <th>Durum</th>
+        <th>İşlem</th>
+      </tr>
+    </thead>
+    <tbody id="randevuListesi"></tbody>
+  </table>
+</div>
 
 <script>
-  const data = JSON.parse(localStorage.getItem("randevular")) || [];
+  // 🔑 ŞİFRE (BURAYI DEĞİŞTİR)
+  const ADMIN_SIFRE = "samet123654";
+
+  function login() {
+    const input = document.getElementById("password").value;
+    if (input === ADMIN_SIFRE) {
+      localStorage.setItem("adminLogin", "true");
+      showPanel();
+    } else {
+      document.getElementById("error").innerText = "Hatalı şifre!";
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("adminLogin");
+    location.reload();
+  }
+
+  function showPanel() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("panel").style.display = "block";
+    render();
+  }
+
+  if (localStorage.getItem("adminLogin") === "true") {
+    showPanel();
+  }
+
+  // 📅 RANDEVULAR
+  let data = JSON.parse(localStorage.getItem("randevular")) || [];
   const tbody = document.getElementById("randevuListesi");
 
   function render() {
@@ -55,17 +106,18 @@
 
   function onayla(i) {
     data[i].onay = true;
-    localStorage.setItem("randevular", JSON.stringify(data));
-    render();
+    save();
   }
 
   function sil(i) {
     data.splice(i, 1);
+    save();
+  }
+
+  function save() {
     localStorage.setItem("randevular", JSON.stringify(data));
     render();
   }
-
-  render();
 </script>
 
 </body>
