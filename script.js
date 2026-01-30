@@ -240,6 +240,27 @@ function generateWhatsAppLink(a) {
     );
     return `https://wa.me/${BARBER_PHONE}?text=${msg}`;
 }
+    function approveAppointment(id) {
+    const apt = appointments.find(a => a.id === id);
+    if (!apt) return;
+
+    apt.status = "approved";
+    saveAppointments();
+    showAllAppointments();
+
+    const message = `
+Merhaba ${apt.name},
+
+${apt.date} tarihinde
+${apt.time} saatindeki randevunuz ONAYLANMIŞTIR ✂️
+
+Samet Totaş Kuaför
+    `.trim();
+
+    const link = `https://wa.me/90${apt.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(link, '_blank');
+}
+
 
 // GLOBAL
 window.closeModal = closeModal;
