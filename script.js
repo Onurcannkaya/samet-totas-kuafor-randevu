@@ -1,567 +1,269 @@
-// ===== KUAFÖR RANDEVU SİSTEMİ =====
-// ===== WHATSAPP ONAY SİSTEMLİ =====
+// ===== SAMET TOTAŞ KUAFÖR RANDEVU SİSTEMİ =====
 
 // ===== GLOBAL DEĞİŞKENLER =====
 let selectedTime = null;
 let appointments = [];
 let filteredAppointments = [];
 
-// Kuaför telefon numarası (WhatsApp için)
-const BARBER_PHONE = '905446580135'; // Buraya gerçek numarayı yazın (başında 90 olacak şekilde)
+// ===== KUAFÖR WHATSAPP NUMARASI =====
+const BARBER_PHONE = '905446580135';
 
 // ===== ÇALIŞMA SAATLERİ =====
 const WORKING_HOURS = {
     start: 9,
     end: 21,
     lunchStart: 13,
-    lunchEnd: 14,
-    appointmentDuration: 40
+    lunchEnd: 14
 };
 
 const SUNDAY = 0;
 
-// ===== ADMİN BİLGİLERİ =====
-const ADMIN = {
+// ===== ADMIN =====
+const ADMIN_CREDENTIALS = {
     username: 'admin',
     password: '1234'
 };
 
-// ===== RANDEVU DURUMLARI =====
-const STATUS = {
-    PENDING: 'pending',      // Onay bekliyor
-    APPROVED: 'approved',    // Onaylandı
-    CANCELLED: 'cancelled'   // İptal edildi
-};
-
-// ===== SAYFA YÜKLENDİĞİNDE =====
-document.addEventListener('DOMContentLoaded', function() {
+// ===== SAYFA YÜKLENDİ =====
+document.addEventListener('DOMContentLoaded', () => {
     loadAppointments();
-    
-    // Müşteri sayfasındaysak
+    autoCancelExpiredAppointments();
+
     if (document.getElementById('appointmentForm')) {
         initCustomerPage();
     }
+
+    if (document.getElementById('loginForm')) {
+        initAdminPage();
+    }
 });
 
-// ===== MÜŞTERİ SAYFASI BAŞLAT =====
+// ===== MÜŞTERİ SAYFASI =====
 function initCustomerPage() {
     const dateInput = document.getElementById('appointmentDate');
-    const form = document.getElementById('appointmentForm');
-    
-    // Minimum tarihi ayarla
-    const today = new Date();
-    dateInput.min = today.toISOString().split('T')[0];
-    
-    // EN YAKIN UYGUN TARİH VE SAATI OTOMATIK SEÇ
-    autoSelectNearestAvailable(dateInput);
-    
-    // Her 5 saniyede bir saatleri güncelle (eşzamanlı randevu önleme)
-    setInterval(function() {
-        if (dateInput.value) {
-            const currentSelectedTime = selectedTime;
-            updateTimeSlots();
-            // Eğer seçili saat dolmuşsa seçimi kaldır
-            if (currentSelectedTime && isTimeSlotBooked(dateInput.value, currentSelectedTime)) {
-                selectedTime = null;
-                document.getElementById('selectedTimeInfo').textContent = '⚠️ Seçtiğiniz saat alındı, lütfen yeni saat seçin';
-                document.getElementById('selectedTimeInfo').style.color = 'var(--danger-color)';
-            }
-        }
-    }, 5000);
-    
-    // Tarih değiştiğinde saatleri güncelle
-    dateInput.addEventListener('change', function() {
-        selectedTime = null; // Saat seçimini sıfırla
-        updateTimeSlots();
-    });
-    
-    // Form gönderildiğinde
-    form.addEventListener('submit', createAppointment);
-    
-    // Modal kapatma
-    const closeBtn = document.querySelector('.close-modal');
-    if (closeBtn) {
-        closeBtn.onclick = closeWhatsAppModal;
-    }
-    
-    window.onclick = function(event) {
-        const modal = document.getElementById('whatsappModal');
-        if (event.target == modal) {
-            closeWhatsAppModal();
-        }
-    };
+    dateInput.min = new Date().toISOString().split('T')[0];
+    setNearestAvailableDate(dateInput);
+
+    dateInput.addEventListener('change', updateTimeSlots);
+    document.getElementById('appointmentForm').addEventListener('submit', createAppointment);
 }
 
-// ===== EN YAKIN UYGUN TARİH VE SAATI OTOMATIK SEÇ =====
-function autoSelectNearestAvailable(dateInput) {
-    // Önce güncel verileri yükle
-    loadAppointments();
-    
-    const today = new Date();
-    let currentDate = new Date(today);
-    let foundDate = false;
-    
-    // En fazla 30 gün ileriye bak
-    for (let i = 0; i < 30; i++) {
-        // Pazar değilse
-        if (currentDate.getDay() !== SUNDAY) {
-            const dateString = currentDate.toISOString().split('T')[0];
-            
-            // Bu tarihte boş saat var mı?
-            const firstAvailableTime = getFirstAvailableTime(dateString);
-            
-            if (firstAvailableTime) {
-                // Tarihi seç
-                dateInput.value = dateString;
-                
-                // Saatleri göster
-                updateTimeSlots();
-                
-                // İlk boş saati otomatik seç
-                setTimeout(() => {
-                    const timeSlots = document.querySelectorAll('.time-slot:not(.booked)');
-                    if (timeSlots.length > 0) {
-                        selectTimeSlot(timeSlots[0], firstAvailableTime);
-                    }
-                }, 100);
-                
-                foundDate = true;
-                break;
-            }
-        }
-        
-        // Bir gün ileri
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    // Uygun gün bulunamadıysa bugünü göster
-    if (!foundDate) {
-        if (today.getDay() !== SUNDAY) {
-            dateInput.value = today.toISOString().split('T')[0];
-        } else {
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            dateInput.value = tomorrow.toISOString().split('T')[0];
-        }
-        updateTimeSlots();
-    }
-}
-
-// ===== BİR TARİHTEKİ İLK BOŞ SAATİ BUL =====
-function getFirstAvailableTime(dateString) {
-    for (let hour = WORKING_HOURS.start; hour < WORKING_HOURS.end; hour++) {
-        if (hour === WORKING_HOURS.lunchStart) continue;
-        
-        for (let minute of [0, 40]) {
-            if (hour === WORKING_HOURS.end - 1 && minute === 40) continue;
-            
-            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            
-            if (!isTimeSlotBooked(dateString, timeString)) {
-                return timeString;
-            }
-        }
-    }
-    return null;
-}
-
-// ===== SAAT SLOTLARINI GÖSTER =====
+// ===== SAATLER =====
 function updateTimeSlots() {
-    // Güncel verileri yükle
-    loadAppointments();
-    
-    const dateInput = document.getElementById('appointmentDate');
-    const timeSlotsContainer = document.getElementById('timeSlots');
-    const selectedDate = dateInput.value;
-    
-    if (!selectedDate) {
-        timeSlotsContainer.innerHTML = '<div class="loading">Lütfen tarih seçin</div>';
+    const container = document.getElementById('timeSlots');
+    const date = document.getElementById('appointmentDate').value;
+    container.innerHTML = '';
+    selectedTime = null;
+
+    if (!date) return;
+
+    const d = new Date(date + 'T00:00:00');
+    if (d.getDay() === SUNDAY) {
+        container.innerHTML = '<p>Pazar günleri kapalıyız</p>';
         return;
     }
-    
-    const date = new Date(selectedDate + 'T00:00:00');
-    
-    // Pazar kontrolü
-    if (date.getDay() === SUNDAY) {
-        timeSlotsContainer.innerHTML = '<div class="no-slots">Pazar günleri kapalıyız</div>';
-        return;
-    }
-    
-    timeSlotsContainer.innerHTML = '';
-    
-    // Tüm saatleri oluştur
-    for (let hour = WORKING_HOURS.start; hour < WORKING_HOURS.end; hour++) {
-        if (hour === WORKING_HOURS.lunchStart) continue;
-        
-        for (let minute of [0, 40]) {
-            if (hour === WORKING_HOURS.end - 1 && minute === 40) continue;
-            
-            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            const isBooked = isTimeSlotBooked(selectedDate, timeString);
-            
-            const timeSlot = document.createElement('div');
-            timeSlot.className = 'time-slot';
-            timeSlot.textContent = timeString;
-            
-            if (isBooked) {
-                timeSlot.classList.add('booked');
-                timeSlot.textContent += ' DOLU';
+
+    for (let h = WORKING_HOURS.start; h < WORKING_HOURS.end; h++) {
+        if (h === WORKING_HOURS.lunchStart) continue;
+
+        for (let m of [0, 40]) {
+            if (h === 20 && m === 40) continue;
+
+            const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            const div = document.createElement('div');
+            div.className = 'time-slot';
+            div.textContent = time;
+
+            if (isTimeSlotBooked(date, time)) {
+                div.classList.add('booked');
+                div.textContent += ' (DOLU)';
             } else {
-                timeSlot.addEventListener('click', function() {
-                    selectTimeSlot(this, timeString);
-                });
+                div.onclick = () => selectTimeSlot(div, time);
             }
-            
-            timeSlotsContainer.appendChild(timeSlot);
+            container.appendChild(div);
         }
     }
 }
 
-// ===== SAAT DOLU MU KONTROL ET =====
+// ===== SAAT DOLU MU? (SADECE ONAYLANANLAR) =====
 function isTimeSlotBooked(date, time) {
-    // ONAY BEKLİYOR veya ONAYLANDI randevular saati doldurur
-    return appointments.some(apt => 
-        apt.date === date && 
-        apt.time === time && 
-        (apt.status === STATUS.PENDING || apt.status === STATUS.APPROVED)
+    return appointments.some(a =>
+        a.date === date &&
+        a.time === time &&
+        a.status === 'ONAYLANDI'
     );
 }
 
 // ===== SAAT SEÇ =====
-function selectTimeSlot(element, time) {
-    // Önceki seçimi kaldır
-    document.querySelectorAll('.time-slot').forEach(slot => {
-        slot.classList.remove('selected');
-    });
-    
-    element.classList.add('selected');
+function selectTimeSlot(el, time) {
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
     selectedTime = time;
-    
-    // Bilgi göster
-    const info = document.getElementById('selectedTimeInfo');
-    info.textContent = `Seçilen saat: ${time}`;
-    info.style.color = 'var(--success-color)';
 }
 
 // ===== RANDEVU OLUŞTUR =====
-function createAppointment(event) {
-    event.preventDefault();
-    
-    const date = document.getElementById('appointmentDate').value;
-    const name = document.getElementById('customerName').value.trim();
-    const phone = document.getElementById('customerPhone').value.trim();
-    
-    // Validasyon
+function createAppointment(e) {
+    e.preventDefault();
+
+    const date = appointmentDate.value;
+    const name = customerName.value.trim();
+    const phone = customerPhone.value.trim();
+
     if (!date || !selectedTime || !name || !phone) {
-        alert('⚠️ Lütfen tüm alanları doldurun!');
+        alert('Tüm alanları doldurun');
         return;
     }
-    
-    // Telefon kontrolü
-    if (phone.length < 10) {
-        alert('⚠️ Geçerli bir telefon numarası girin!');
-        return;
-    }
-    
-    // KRİTİK: Son kez güncel verileri yükle (eşzamanlı randevu önleme)
-    loadAppointments();
-    
-    // ÇAKIŞMA KONTROLÜ - SON KEZ KONTROL ET
-    if (isTimeSlotBooked(date, selectedTime)) {
-        alert('⚠️ Bu saat başka bir müşteri tarafından alınmış! Lütfen başka bir saat seçin.');
-        updateTimeSlots();
-        selectedTime = null;
-        document.getElementById('selectedTimeInfo').textContent = '';
-        return;
-    }
-    
-    // Yeni randevu oluştur
-    const newAppointment = {
+
+    const appointment = {
         id: Date.now(),
-        date: date,
+        date,
         time: selectedTime,
-        name: name,
-        phone: phone,
-        status: STATUS.PENDING, // Onay bekliyor
-        createdAt: new Date().toISOString()
+        name,
+        phone,
+        status: 'ONAY BEKLİYOR',
+        createdAt: Date.now()
     };
-    
-    appointments.push(newAppointment);
+
+    appointments.push(appointment);
     saveAppointments();
-    
-    // WhatsApp modal göster
-    showWhatsAppModal(newAppointment);
-    
-    // Formu temizle
-    document.getElementById('appointmentForm').reset();
-    selectedTime = null;
-    
-    // Saatleri güncelle
-    autoSelectNearestAvailable(document.getElementById('appointmentDate'));
+    showSuccessMessage(appointment);
+    updateTimeSlots();
+    appointmentForm.reset();
 }
 
-// ===== WHATSAPP MODAL GÖSTER =====
-function showWhatsAppModal(appointment) {
-    const modal = document.getElementById('whatsappModal');
-    const summaryDiv = document.getElementById('appointmentSummary');
-    const whatsappBtn = document.getElementById('whatsappButton');
-    
-    // Tarih formatla
-    const dateObj = new Date(appointment.date + 'T00:00:00');
-    const dateFormatted = dateObj.toLocaleDateString('tr-TR', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    
-    // Özet bilgi
-    summaryDiv.innerHTML = `
-        <p><strong>📅 Tarih:</strong> ${dateFormatted}</p>
-        <p><strong>🕐 Saat:</strong> ${appointment.time}</p>
-        <p><strong>👤 Ad Soyad:</strong> ${appointment.name}</p>
-        <p><strong>📱 Telefon:</strong> ${appointment.phone}</p>
+// ===== BAŞARI MODALI =====
+function showSuccessMessage(app) {
+    const link = generateWhatsAppLink(app);
+    appointmentSummary.innerHTML = `
+        <p><strong>${app.date} ${app.time}</strong></p>
+        <p>${app.name}</p>
+        <p>⏳ 30 dk içinde WhatsApp’tan onaylayın</p>
+        <a href="${link}" target="_blank" class="whatsapp-btn">
+            📲 WhatsApp’tan Onayla
+        </a>
     `;
-    
-    // WhatsApp mesajı oluştur
-    const message = `Merhaba, Samet Totaş Kuaför için ${dateFormatted} tarihinde saat ${appointment.time} randevumu onaylamak istiyorum. Telefonum: ${appointment.phone}`;
-    
-    // WhatsApp linki
-    const whatsappUrl = `https://wa.me/${BARBER_PHONE}?text=${encodeURIComponent(message)}`;
-    whatsappBtn.href = whatsappUrl;
-    
-    modal.style.display = 'block';
+    successModal.style.display = 'block';
 }
 
-// ===== WHATSAPP MODAL KAPAT =====
-function closeWhatsAppModal() {
-    document.getElementById('whatsappModal').style.display = 'none';
+function closeModal() {
+    successModal.style.display = 'none';
 }
 
-// ===== RANDEVULARI KAYDET =====
+// ===== LOCAL STORAGE =====
 function saveAppointments() {
     localStorage.setItem('appointments', JSON.stringify(appointments));
 }
-
-// ===== RANDEVULARI YÜKLE =====
 function loadAppointments() {
-    const stored = localStorage.getItem('appointments');
-    appointments = stored ? JSON.parse(stored) : [];
+    appointments = JSON.parse(localStorage.getItem('appointments')) || [];
 }
 
-// ===== ADMİN PANEL FONKSİYONLARI =====
+// ===== 30 DK ONAY GELMEZSE SİL =====
+function autoCancelExpiredAppointments() {
+    const now = Date.now();
+    appointments = appointments.filter(a =>
+        a.status === 'ONAYLANDI' ||
+        (now - a.createdAt) / 60000 <= 30
+    );
+    saveAppointments();
+}
 
+// ===== EN YAKIN TARİH =====
+function setNearestAvailableDate(input) {
+    let d = new Date();
+    for (let i = 0; i < 30; i++) {
+        if (d.getDay() !== SUNDAY) {
+            input.value = d.toISOString().split('T')[0];
+            updateTimeSlots();
+            return;
+        }
+        d.setDate(d.getDate() + 1);
+    }
+}
+
+// ===== ADMIN =====
 function initAdminPage() {
-    const loginForm = document.getElementById('loginForm');
-    
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
-    }
-    
-    // Session kontrolü
-    if (sessionStorage.getItem('adminLoggedIn') === 'true') {
-        showAdminPanel();
-    }
+    if (sessionStorage.getItem('adminLoggedIn')) showAdminPanel();
+    loginForm.addEventListener('submit', handleLogin);
 }
 
-// ===== ADMİN GİRİŞ =====
-function handleLogin(event) {
-    event.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const errorMsg = document.getElementById('loginError');
-    
-    if (username === ADMIN.username && password === ADMIN.password) {
-        sessionStorage.setItem('adminLoggedIn', 'true');
+function handleLogin(e) {
+    e.preventDefault();
+    if (username.value === 'admin' && password.value === '1234') {
+        sessionStorage.setItem('adminLoggedIn', true);
         showAdminPanel();
-    } else {
-        errorMsg.textContent = '❌ Kullanıcı adı veya şifre hatalı!';
-    }
+    } else alert('Hatalı giriş');
 }
 
-// ===== ADMİN PANELİ GÖSTER =====
 function showAdminPanel() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    
-    updateStats();
-    displayAppointments();
+    loginScreen.style.display = 'none';
+    adminPanel.style.display = 'block';
+    renderAdmin();
 }
 
-// ===== İSTATİSTİKLERİ GÜNCELLE =====
-function updateStats() {
-    loadAppointments();
-    
-    const total = appointments.length;
-    const pending = appointments.filter(a => a.status === STATUS.PENDING).length;
-    const approved = appointments.filter(a => a.status === STATUS.APPROVED).length;
-    const cancelled = appointments.filter(a => a.status === STATUS.CANCELLED).length;
-    
-    document.getElementById('totalAppointments').textContent = total;
-    document.getElementById('pendingAppointments').textContent = pending;
-    document.getElementById('approvedAppointments').textContent = approved;
-    document.getElementById('cancelledAppointments').textContent = cancelled;
-}
-
-// ===== FİLTRELERİ UYGULA =====
-function applyFilters() {
-    const filterDate = document.getElementById('filterDate').value;
-    const filterStatus = document.getElementById('filterStatus').value;
-    
-    filteredAppointments = appointments.filter(apt => {
-        let match = true;
-        
-        if (filterDate && apt.date !== filterDate) {
-            match = false;
-        }
-        
-        if (filterStatus !== 'all' && apt.status !== filterStatus) {
-            match = false;
-        }
-        
-        return match;
-    });
-    
-    displayAppointments();
-}
-
-// ===== FİLTRELERİ SIFIRLA =====
-function resetFilters() {
-    document.getElementById('filterDate').value = '';
-    document.getElementById('filterStatus').value = 'all';
-    filteredAppointments = [...appointments];
-    displayAppointments();
-}
-
-// ===== RANDEVULARI GÖSTER =====
-function displayAppointments() {
-    loadAppointments();
-    
-    if (filteredAppointments.length === 0) {
-        filteredAppointments = [...appointments];
-    }
-    
-    const listDiv = document.getElementById('appointmentsList');
-    
-    if (filteredAppointments.length === 0) {
-        listDiv.innerHTML = '<div class="no-appointments">📭 Henüz randevu yok</div>';
-        return;
-    }
-    
-    // Tarihe göre sırala
-    filteredAppointments.sort((a, b) => {
-        if (a.date !== b.date) {
-            return new Date(a.date) - new Date(b.date);
-        }
-        return a.time.localeCompare(b.time);
-    });
-    
-    let html = '';
-    
-    filteredAppointments.forEach(apt => {
-        const dateObj = new Date(apt.date + 'T00:00:00');
-        const dateFormatted = dateObj.toLocaleDateString('tr-TR', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
-        
-        let statusBadge = '';
-        let statusClass = '';
-        
-        if (apt.status === STATUS.PENDING) {
-            statusBadge = 'ONAY BEKLİYOR';
-            statusClass = 'status-pending';
-        } else if (apt.status === STATUS.APPROVED) {
-            statusBadge = 'ONAYLANDI';
-            statusClass = 'status-approved';
-        } else if (apt.status === STATUS.CANCELLED) {
-            statusBadge = 'İPTAL EDİLDİ';
-            statusClass = 'status-cancelled';
-        }
-        
-        html += `
-            <div class="appointment-item">
-                <div class="appointment-header">
-                    <div class="appointment-date-time">
-                        📅 ${dateFormatted} • 🕐 ${apt.time}
-                    </div>
-                    <span class="status-badge ${statusClass}">${statusBadge}</span>
-                </div>
-                <div class="appointment-details">
-                    <div class="detail-item">
-                        <span>👤</span>
-                        <span><strong>Müşteri:</strong> ${apt.name}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span>📱</span>
-                        <span><strong>Telefon:</strong> ${apt.phone}</span>
-                    </div>
-                </div>
-                <div class="appointment-actions">
-                    ${apt.status === STATUS.PENDING ? `
-                        <button class="btn-action btn-approve" onclick="approveAppointment(${apt.id})">
-                            ✅ Onayla
-                        </button>
-                    ` : ''}
-                    ${apt.status !== STATUS.CANCELLED ? `
-                        <button class="btn-action btn-cancel" onclick="cancelAppointment(${apt.id})">
-                            ❌ İptal Et
-                        </button>
-                    ` : ''}
-                </div>
+function renderAdmin() {
+    appointmentsList.innerHTML = '';
+    appointments.forEach(a => {
+        appointmentsList.innerHTML += `
+            <div>
+                ${a.date} ${a.time} - ${a.name}
+                <strong>${a.status}</strong>
+                ${a.status === 'ONAY BEKLİYOR' ? `
+                <button onclick="approve(${a.id})">✅</button>
+                <button onclick="reject(${a.id})">❌</button>` : ''}
             </div>
         `;
     });
-    
-    listDiv.innerHTML = html;
 }
 
-// ===== RANDEVU ONAYLA =====
-function approveAppointment(id) {
-    if (!confirm('Bu randevuyu onaylamak istediğinizden emin misiniz?')) {
-        return;
-    }
-    
-    const apt = appointments.find(a => a.id === id);
-    if (apt) {
-        apt.status = STATUS.APPROVED;
-        saveAppointments();
-        updateStats();
-        displayAppointments();
-        alert('✅ Randevu onaylandı!');
-    }
+function approve(id) {
+    const a = appointments.find(x => x.id === id);
+    a.status = 'ONAYLANDI';
+    saveAppointments();
+    renderAdmin();
 }
 
-// ===== RANDEVU İPTAL ET =====
-function cancelAppointment(id) {
-    if (!confirm('Bu randevuyu iptal etmek istediğinizden emin misiniz?')) {
-        return;
-    }
-    
-    const apt = appointments.find(a => a.id === id);
-    if (apt) {
-        apt.status = STATUS.CANCELLED;
-        saveAppointments();
-        updateStats();
-        displayAppointments();
-        alert('❌ Randevu iptal edildi. Saat otomatik boşaldı.');
-    }
+function reject(id) {
+    appointments = appointments.filter(x => x.id !== id);
+    saveAppointments();
+    renderAdmin();
 }
 
-// ===== ÇIKIŞ YAP =====
 function logout() {
-    sessionStorage.removeItem('adminLoggedIn');
-    window.location.reload();
+    sessionStorage.clear();
+    location.reload();
 }
 
-// ===== GLOBAL FONKSİYONLAR =====
-window.closeWhatsAppModal = closeWhatsAppModal;
-window.initAdminPage = initAdminPage;
+// ===== WHATSAPP =====
+function generateWhatsAppLink(a) {
+    const msg = encodeURIComponent(
+        `Merhaba Samet Totaş Kuaför,\n${a.date} ${a.time} randevumu onaylatmak istiyorum.\n${a.name}`
+    );
+    return `https://wa.me/${BARBER_PHONE}?text=${msg}`;
+}
+    function approveAppointment(id) {
+    const apt = appointments.find(a => a.id === id);
+    if (!apt) return;
+
+    apt.status = "approved";
+    saveAppointments();
+    showAllAppointments();
+
+    const message = `
+Merhaba ${apt.name},
+
+${apt.date} tarihinde
+${apt.time} saatindeki randevunuz ONAYLANMIŞTIR ✂️
+
+Samet Totaş Kuaför
+    `.trim();
+
+    const link = `https://wa.me/90${apt.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(link, '_blank');
+}
+
+
+// GLOBAL
+window.closeModal = closeModal;
 window.logout = logout;
-window.applyFilters = applyFilters;
-window.resetFilters = resetFilters;
-window.approveAppointment = approveAppointment;
-window.cancelAppointment = cancelAppointment;
+window.approve = approve;
+window.reject = reject;
